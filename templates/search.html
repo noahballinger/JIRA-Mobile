@@ -1,0 +1,17 @@
+
+{% extends 'layout.html' %}
+{% block content %}
+        <div class="container">
+            {% if tickets%}
+            {% for ticket in tickets %}
+            <div>
+                <h1>{{ ticket.title}}</h1>
+                <h2>{{ ticket.summary}}</h2>
+                <p>{{ ticket.description }}</p>
+            </div>
+            {% endfor %}
+            {% else %}
+            <h1>Sorry, no tickets!</h1>
+            {% endif %}
+        </div>
+{% endblock %}
