@@ -1,10 +1,7 @@
 from flask import Flask, render_template
-#from jira import JIRA
+from jira import JIRA
 
 app = Flask(__name__)
-
-#jira=JIRA('servicedesk.isha.in')
-#auth_jira = JIRA(basic_auth=('noah.b', 'Yoga@774'))
 
 tickets= [
     {
@@ -64,3 +61,11 @@ def search():
 @app.route("/ticket")
 def ticket():
     return render_template('ticket.html')
+
+@app.route("/settings")
+def settings():
+    return render_template('settings.html')
+
+@app.route("/dashboard")
+def dashboard():
+    return render_template('dashboard.html')
