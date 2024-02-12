@@ -47,6 +47,17 @@ def logout():
 @app.route("/jql", methods=["GET", "POST"])
 def jql():
     jql = request.form.get("jql")
+    jql_checkbox = request.form.get("jql_checkbox")
+    hide_closed_checkbox = request.form.get('hide_closed_tickets')
+
+    if jql_checkbox != "checked":
+        jql = "key = " + jql
+
+    if hide_closed_checkbox == 'checked':
+        jql = jql + 'AND status not in (delivered, closed, Canceled, cancelled, DONE, Resolved, "Text Delivered")'
+
+
+
 
     if jql == "":
         print('No JQL')
@@ -125,26 +136,16 @@ def search():
         return redirect("/login")
         
         
-        
-    # jql= 'assignee =' + username + ' AND type != "Imp New Content" AND type != "Imp Proofing" AND status not in ("text delivered", closed, Canceled, cancelled, DONE, Resolved, "Pending Requester Review", "EngPub Review", "Pending Requester Clarification", "W/Cust-Clar (Text)", "W/Cust-Review (Text)", "Text Under Review")'
-
-        
 
 
     return render_template('search.html', tickets=tickets, last_jql=jql)
 
-# This gets the issue key and routes it to appropriate ticket page type
+# This gets the issue key and saves it in state.
 @app.route("/search/<issue_key>")
-def issue_routing(issue_key):
+def save_issue(issue_key):
     session["issue_key"] = issue_key
     
-    if "OCD" in issue_key:
-        return redirect("/ocd")
-    
-    if "EPSD" in issue_key:
-        return redirect('/ocd')
-    else:
-        return redirect("/default")
+    return redirect('/ticket')
 
     
 # This route only exists for the navbar- it routes to the ticket saved in state
@@ -156,7 +157,7 @@ def ticket():
         if "OCD" in issue_key:
             return redirect("/ocd")
         else:
-            return redirect("/default")
+            return redirect("/ocd")
     except:
         return redirect('/search')
 
@@ -233,7 +234,7 @@ def ocd():
 
 
 ### Comments
-        comments_info = []
+        comment_list = []
 
         comments = jira.get_comments(issue_key)
         for comment in comments:
@@ -259,13 +260,13 @@ def ocd():
                 'body': clean_comment(body),
                 'attachments': filepaths
             }
-            comments_info.append(comment_info)
+            comment_list.append(comment_info)
 
-        comments_info.reverse()
+        comment_list.reverse()
 
 
             
-        return render_template('ocd.html', username=username, fields=fields, comments=comments_info, transitions=transitions, issue_key=issue_key)
+        return render_template('ocd.html', username=username, fields=fields, comments=comment_list, transitions=transitions, issue_key=issue_key)
     
     except:
         return redirect('/search')
@@ -310,7 +311,7 @@ def dashboard():
 
         jira= JIRAService(username, password, "https://servicedesk.isha.in")
         
-        jql= 'assignee =' + username + ' AND type != "Imp New Content" AND type != "Imp Proofing" AND status not in ("text delivered", closed, Canceled, cancelled, DONE, Resolved, "Pending Requester Review", "EngPub Review", "Pending Requester Clarification", "W/Cust-Clar (Text)", "W/Cust-Review (Text)", "Text Under Review")'
+        jql= 'assignee =' + username + ' AND type != "Imp New Content" AND type != "Imp Proofing" AND status not in ("text delivered", "EngPub Review", closed, Canceled, cancelled, DONE, Resolved, "Pending Requester Review", "Pending Requester Clarification", "W/Cust-Clar (Text)", "W/Cust-Review (Text)", "Text Under Review")'
         
         tickets = jira.get_issues_from_jql(jql)
 

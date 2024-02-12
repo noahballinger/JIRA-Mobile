@@ -1,4 +1,5 @@
 from jira import JIRA
+import os
 
 class JIRAService:
     def __init__(self, username, password, server_url):
@@ -77,14 +78,19 @@ class JIRAService:
     def download_attachment(self, attachment_id):
         
         attached_file = self.jira.attachment(attachment_id)
-        download = attached_file.get()
-
+        
         save_directory = 'static/attachments/'
         file_path = save_directory + attached_file.filename
-        with open(file_path, 'wb') as f:
-            f.write(download)
 
-        return file_path
+
+        if os.path.isfile(file_path):
+            return file_path
+        else:
+            # putting this download variable here as it seems like python gets it anway it's its initialized earlier.
+            download = attached_file.get()
+            with open(file_path, 'wb') as f:
+                f.write(download)
+                return "wow"
         
 
         

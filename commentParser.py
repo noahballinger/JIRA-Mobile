@@ -9,16 +9,19 @@ def extract_attachment_references(comment_body):
 
 def clean_comment(comment):
     # Remove [~ and ] from the mention
+    
+    
+    
+    comment_names = re.sub(r'\[\~(.*?)\]', r'\1', comment)
 
-    # line_breaks = re.sub(r'\n', '<br>', comment)
-    line_breaks = comment
-    cleaned_comment = re.sub(r'\[~(.*?)\]', '', line_breaks)
     
     # Remove everything between ! and |thumbnail! and also remove |thumbnail!
-    cleaned_comment = re.sub(r'!(.*?)\|thumbnail!', '', cleaned_comment)
+    cleaned_comment = re.sub(r'!(.*?)\|thumbnail!', '', comment_names)
+    
+    return cleaned_comment
+
 
 
     
-    return cleaned_comment
 
     
