@@ -84,9 +84,11 @@ class JIRAService:
 
 
         if os.path.isfile(file_path):
-            return file_path
+            #added this so that images display properly. othewise it tries to get it from the wrong directory
+            file_path_for_html = '/'+file_path
+            return file_path_for_html
         else:
-            # putting this download variable here as it seems like python gets it anway it's its initialized earlier.
+            # putting this download variable here as it seems like python gets it anway it's its initialized.
             download = attached_file.get()
             with open(file_path, 'wb') as f:
                 f.write(download)

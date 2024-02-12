@@ -4,6 +4,19 @@ from jiraService import JIRAService
 import datetime
 from dateParser import parse_date
 from commentParser import extract_attachment_references, clean_comment
+from loadTicket import Ticket
+
+#####
+#for testing speed of functions
+#####
+
+# import time
+
+# start = time.time()
+# end = time.time()
+# print(end - start)
+
+#####
 
 
 app = Flask(__name__)
@@ -50,11 +63,12 @@ def jql():
     jql_checkbox = request.form.get("jql_checkbox")
     hide_closed_checkbox = request.form.get('hide_closed_tickets')
 
+
     if jql_checkbox != "checked":
         jql = "key = " + jql
 
     if hide_closed_checkbox == 'checked':
-        jql = jql + 'AND status not in (delivered, closed, Canceled, cancelled, DONE, Resolved, "Text Delivered")'
+        jql = jql + ' AND status not in (delivered, closed, Canceled, cancelled, DONE, Resolved, "Text Delivered")'
 
 
 
@@ -71,6 +85,7 @@ def comment():
     password = session.get("password")
     issue = session.get('issue_key')
     comment = request.form.get("comment")
+    path = '/search/' + issue
 
     jira= JIRAService(username, password, "https://servicedesk.isha.in")
 
@@ -78,7 +93,7 @@ def comment():
     
     print(comment)
 
-    return redirect('/ocd')
+    return redirect(path)
     
     
 
@@ -144,130 +159,52 @@ def search():
 @app.route("/search/<issue_key>")
 def save_issue(issue_key):
     session["issue_key"] = issue_key
-    
-    return redirect('/ticket')
+    username = session.get("username")
+    password = session.get("password")
 
+    try:
+        issue_key = session.get("issue_key")
+        ticket = Ticket(username, password, issue_key).load()
+
+        status = str(ticket["status"])
+
+
+        if "OCD" in issue_key:
+            if status == 'w/Publ- Proofing':
+
+                return render_template('proofing.html', username=username, fields=ticket['fields'], comments=ticket['comments'], transitions=ticket['transitions'], issue_key=issue_key)
+            else:
+                print(str(ticket["comments"]))
+                return render_template('ocd.html', username=username, fields=ticket['fields'], comments=ticket['comments'], transitions=ticket['transitions'], issue_key=issue_key)
+                
+        elif "EPSD" in issue_key:
+            if status == 'Pending Requester Clarification':
+
+                # 'Creative under Proofing'
+
+                comments = ticket["comments"]
+                last_comment = comments[0]
+                print(last_comment)
+
+                return render_template('proofing.html', last_comment=last_comment, username=username, fields=ticket['fields'], comments=ticket['comments'], transitions=ticket['transitions'], issue_key=issue_key)
+           
+            else:
+                return render_template('ocd.html', username=username, fields=ticket['fields'], comments=ticket['comments'], transitions=ticket['transitions'], issue_key=issue_key)
+
+        else:
+
+            return render_template('ocd.html', username=username, fields=ticket['fields'], comments=ticket['comments'], transitions=ticket['transitions'], issue_key=issue_key)
+    except:
+        return redirect('/login')
     
 # This route only exists for the navbar- it routes to the ticket saved in state
 @app.route("/ticket")
 def ticket():
     issue_key = session.get("issue_key")
+    path = "/search/" + issue_key
     try:
-        ## From here on should be the same as the issue_routing function above
-        if "OCD" in issue_key:
-            return redirect("/ocd")
-        else:
-            return redirect("/ocd")
-    except:
-        return redirect('/search')
-
-
-### these are the various pages for ticket types
-@app.route("/default")
-def default():
-    try:
-        username = session.get("username")
-        password = session.get("password")
-        issue_key = session.get("issue_key")
-
-
-        jira= JIRAService(username, password, "https://servicedesk.isha.in")
-            
-        issue= jira.get_issue(issue_key)
-
-        # Get all fields
-        all_fields = jira.get_all_fields()
-        
-        field_map = {field['id']: field['name'] for field in all_fields}
-
-        fields = {}
-
-        # Replace field keys with their corresponding names
-        for field_id in issue.raw['fields']:
-            field_name = field_map.get(field_id, field_id)
-            field_val = issue.raw['fields'][field_id]
-            
-            if field_val is not None and field_val != "Unresolved" and field_val != 0.0:
-                fields[field_name] = field_val
-        return render_template('default.html', username=username, fields=fields)
-    except:
-        return redirect('/search')
     
-@app.route("/ocd")
-def ocd():
-    try:
-        username = session.get("username")
-        password = session.get("password")
-        issue_key = session.get("issue_key")
-
-
-        jira= JIRAService(username, password, "https://servicedesk.isha.in")
-            
-        issue= jira.get_issue(issue_key)
-
-        # Get all fields
-        all_fields = jira.get_all_fields()
-        
-        field_map = {field['id']: field['name'] for field in all_fields}
-
-        fields = {}
-
-        # Replace field keys with their corresponding names
-        for field_id in issue.raw['fields']:
-            field_name = field_map.get(field_id, field_id)
-            field_val = issue.raw['fields'][field_id]
-            
-            if field_val is not None and field_val != "Unresolved" and field_val != 0.0:
-                fields[field_name] = field_val
-
-# Transitions and workflow
-                
-        transitions = jira.get_transitions(issue_key)
-
-
-        # print(transitions)
-
-## gets list of attachments (used later in comments)
-        
-        attachments = jira.attachments(issue_key)
-
-
-
-### Comments
-        comment_list = []
-
-        comments = jira.get_comments(issue_key)
-        for comment in comments:
-            author = comment.author
-            date = comment.created
-            body = comment.body
-
-            #searches for referenced attachments and downloads them.
-
-            referenced_attachments = extract_attachment_references(body)
-            download_dict = {k: attachments[k] for k in referenced_attachments if k in attachments}
-            downloads = [value for value in download_dict.values()]
-            filepaths = []
-
-            for download in downloads:
-                filepath = jira.download_attachment(download)
-                filepaths.append(filepath)
-            
-
-            comment_info = {
-                'author': author,
-                'date': parse_date(date),
-                'body': clean_comment(body),
-                'attachments': filepaths
-            }
-            comment_list.append(comment_info)
-
-        comment_list.reverse()
-
-
-            
-        return render_template('ocd.html', username=username, fields=fields, comments=comment_list, transitions=transitions, issue_key=issue_key)
-    
+        return redirect(path)
     except:
         return redirect('/search')
     
